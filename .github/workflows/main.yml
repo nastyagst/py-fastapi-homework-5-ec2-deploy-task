@@ -1,6 +1,9 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
+  push:
+    branches:
+      - "main"
   pull_request:
     branches:
       - "main"
@@ -95,3 +98,23 @@ jobs:
         if: always()
         run: |
           docker compose -f docker-compose-tests.yml down
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test-accounts, test-movies, test-profiles, test-e2e]
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/src/py-fastapi-homework-5-ec2-deploy-task
+            git pull origin main
+            chmod +x commands/deploy.sh
+            ./commands/deploy.sh
